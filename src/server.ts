@@ -5,8 +5,12 @@ import * as WebSocket from 'ws';
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({server});
-wss.on('connection', (ws: WebSocket) => {
-   ws.on('message', (message: string) => {
+wss.on('connection', (ws: ExtWebSocket) => {
+    ws.isAlive = true;
+    ws.on('pong', () => {
+        ws.isAlive = true;
+    });
+    ws.on('message', (message: string) => {
        console.log('received: %s' + message);
 
        const broadcastRegex = /^broadcast\:/;
@@ -27,6 +31,14 @@ wss.on('connection', (ws: WebSocket) => {
        }
    });
 });
+
+setInterval(()=>{
+    wss.clients.forEach((ws: ExtWebSocket) =>{
+        if (!ws.isAlive) return ws.terminate();
+        ws.isAlive = false;
+        ws.ping(null, false, true);
+    });
+}, 10000);
 
 server.listen(process.env.PORT || 3000, () => {
     console.log(`Server started on port ${server.address().port}:)))`);
